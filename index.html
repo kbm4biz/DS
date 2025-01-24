@@ -6,34 +6,134 @@
     <title>مولد بطاقة هدايا</title>
     <style>
         :root {
-            --card-width: 384px;
-            --card-height: 864px;
-            --background-image: url('https://drive.google.com/drive-viewer/AKGpihbBc_78nsr-LX20dk42ayNGXAIb85m8YpZB4FTl2s909710w_0AvZzId9xJ6CnPScHItUTdBDa92GplRDejhTr0zu89piO2dg=s1600-rw-v1');
+            /* ======== CUSTOMIZABLE PARAMETERS ======== */
+            --card-width: 1536px;   /* 4 inches (96 DPI) */
+            --card-height: 3456px;  /* 9 inches (96 DPI) */
+            --background-image: url('https://drive.google.com/drive-viewer/AKGpihbBc_78nsr-LX20dk42ayNGXAIb85m8YpZB4FTl2s909710w_0AvZzId9xJ6CnPScHItUTdBDa92GplRDejhTr0zu89piO2dg=s1600-rw-v1'); /* Default background */
+            /* ========================================== */
         }
 
-        /* ... (keep previous CSS styles unchanged) ... */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 32px;
+            color: #333;
+        }
+
+        #giftCardForm {
+            display: flex;
+            flex-direction: column;
+            width: 300px;
+            margin-bottom: 20px;
+        }
+
+        input, button {
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #cardContainer {
+            position: relative;
+            width: var(--card-width);
+            height: var(--card-height);
+            background-image: var(--background-image);
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #textDisplay {
+            font-size: 32px;
+            text-align: center;
+            margin: 20px;
+            color: #333;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        #qrCode {
+            position: absolute;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-    <!-- ... (keep HTML structure unchanged) ... -->
+    <h1>مولد بطاقة هدايا</h1>
+    <form id="giftCardForm">
+        <input type="text" id="text" placeholder="أدخل النص الخاص بك" required>
+        <input type="url" id="url" placeholder="أدخل رابط URL (اختياري)">
+        <button type="button" onclick="generateCard()">إنشاء بطاقة هدايا</button>
+        <button type="button" onclick="sendToDiscord()">إرسال إلى Discord</button>
+    </form>
+
+    <div id="cardContainer">
+        <div id="textDisplay"></div>
+        <div id="qrCode"></div>
+    </div>
 
     <script>
         let generatedCardImage = null;
 
         function generateCard() {
+            const text = document.getElementById('text').value;
+            const url = document.getElementById('url').value;
+
+            // Display the text
+            const textDisplay = document.getElementById('textDisplay');
+            textDisplay.textContent = text;
+
+            // Generate QR code
+            const qrCodeDiv = document.getElementById('qrCode');
+            qrCodeDiv.innerHTML = '';
+            if (url) {
+                new QRCode(qrCodeDiv, {
+                    text: url,
+                    width: 100,
+                    height: 100
+                });
+            }
+
+            // Convert the card to an image
             const cardContainer = document.getElementById('cardContainer');
-            
             html2canvas(cardContainer, {
-                useCORS: true,
-                scale: 2,
-                logging: true,
-                imageTimeout: 0,
-                backgroundColor: null
+                useCORS: true, // Allow cross-origin images
+                scale: 2 // Higher resolution
             }).then(canvas => {
-                // Force PNG format with quality setting
-                generatedCardImage = canvas.toDataURL('image/png', 1.0);
+                generatedCardImage = canvas.toDataURL('image/png');
             });
         }
 
@@ -45,39 +145,30 @@
 
             const webhookURL = 'https://discord.com/api/webhooks/1147683551236587550/Me9GrRXPY1aMRch5if7KHEymy36qm28XDl_YlDEX-pkVqbasrlXlJppcbaAVbRNqSePU';
 
-            try {
-                // Convert base64 to ArrayBuffer
-                const base64Data = generatedCardImage.split(',')[1];
-                const binaryString = atob(base64Data);
-                const uint8Array = new Uint8Array(binaryString.length);
-                
-                for (let i = 0; i < binaryString.length; i++) {
-                    uint8Array[i] = binaryString.charCodeAt(i);
-                }
+            // Convert to Blob
+            const base64Data = generatedCardImage.split(',')[1];
+            const blob = await fetch(`data:image/png;base64,${base64Data}`).then(res => res.blob());
 
-                // Create Blob with explicit PNG type
-                const blob = new Blob([uint8Array], { type: 'image/png' });
+            // Create FormData
+            const formData = new FormData();
+            formData.append('file', blob, 'gift-card.png');
 
-                // Create FormData with proper filename
-                const formData = new FormData();
-                formData.append('file', blob, 'gift-card.png');
-
-                // Send to Discord with proper headers
-                const response = await fetch(webhookURL, {
-                    method: 'POST',
-                    body: formData
-                });
-
+            // Send to Discord
+            fetch(webhookURL, {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
                 if (response.ok) {
                     alert('تم الإرسال بنجاح!');
                 } else {
-                    console.error('Discord API Error:', await response.text());
                     alert('فشل الإرسال.');
                 }
-            } catch (error) {
+            })
+            .catch(error => {
                 console.error('Error:', error);
                 alert('حدث خطأ أثناء الإرسال.');
-            }
+            });
         }
     </script>
 </body>
