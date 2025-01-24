@@ -6,81 +6,86 @@
     <title>مولد بطاقة هدايا</title>
     <style>
         :root {
-            /* ======== CUSTOMIZABLE PARAMETERS ======== */
-            --card-width: 384px;   /* 4 inches (96 DPI) */
-            --card-height: 864px;  /* 9 inches (96 DPI) */
-            --background-image: url('https://drive.google.com/drive-viewer/AKGpihbBc_78nsr-LX20dk42ayNGXAIb85m8YpZB4FTl2s909710w_0AvZzId9xJ6CnPScHItUTdBDa92GplRDejhTr0zu89piO2dg=s1600-rw-v1');
-            /* ========================================== */
+            --card-width: 384px;
+            --card-height: 864px;
+            --background-image: url('https://via.placeholder.com/384x864');
         }
 
         /* ... (keep previous CSS styles unchanged) ... */
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-    <!-- ... (keep HTML structure unchanged) ... -->
+    <h1>مولد بطاقة هدايا</h1>
+    <form id="giftCardForm">
+        <input type="text" id="text" placeholder="أدخل النص الخاص بك" required>
+        <input type="url" id="url" placeholder="أدخل رابط URL (اختياري)">
+        <button type="button" onclick="generateCard()">إنشاء بطاقة هدايا</button>
+        <button type="button" onclick="sendToDiscord()">إرسال إلى Discord</button>
+    </form>
+
+    <!-- Added temporary border for debugging -->
+    <div id="cardContainer" style="border: 2px solid red;">
+        <div id="textDisplay"></div>
+        <div id="qrCode"></div>
+    </div>
+
+    <!-- Added explicit script loading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <script>
         let generatedCardImage = null;
 
-        function generateCard() {
-            const cardContainer = document.getElementById('cardContainer');
+        async function generateCard() {
+            console.log('Starting card generation...');
             
-            html2canvas(cardContainer, {
-                useCORS: true,
-                scale: 3, // Triple resolution for HD output
-                dpi: 300, // High DPI rendering
-                logging: true,
-                backgroundColor: null,
-                imageTimeout: 0
-            }).then(canvas => {
-                // Convert to PNG with quality settings
-                generatedCardImage = canvas.toDataURL('image/png', 1.0); // Highest quality
-            });
-        }
-
-        async function sendToDiscord() {
-            if (!generatedCardImage) {
-                alert('الرجاء إنشاء البطاقة أولاً.');
-                return;
+            // 1. Update DOM elements
+            const text = document.getElementById('text').value;
+            const url = document.getElementById('url').value;
+            
+            document.getElementById('textDisplay').textContent = text;
+            const qrCodeDiv = document.getElementById('qrCode');
+            qrCodeDiv.innerHTML = '';
+            
+            if (url) {
+                new QRCode(qrCodeDiv, {
+                    text: url,
+                    width: 100,
+                    height: 100
+                });
             }
 
-            const webhookURL = 'https://discord.com/api/webhooks/1147683551236587550/Me9GrRXPY1aMRch5if7KHEymy36qm28XDl_YlDEX-pkVqbasrlXlJppcbaAVbRNqSePU';
+            // 2. Wait for rendering to complete
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Convert to PNG Blob with explicit type
-            const base64Data = generatedCardImage.split(',')[1];
-            const blob = await fetch(`data:image/png;base64,${base64Data}`)
-                .then(res => res.blob())
-                .then(blob => new Blob([blob], { type: 'image/png' }));
-
-            // Create FormData with proper filename
-            const formData = new FormData();
-            formData.append('file', blob, 'gift-card.png');
-
-            // Force PNG attachment
-            fetch(webhookURL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-                body: formData,
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert('تم الإرسال بنجاح!');
-                } else {
-                    response.text().then(text => {
-                        console.error('Discord Error:', text);
-                        alert('فشل الإرسال: ' + text);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('حدث خطأ أثناء الإرسال.');
-            });
+            // 3. Capture with debug options
+            try {
+                const canvas = await html2canvas(document.getElementById('cardContainer'), {
+                    useCORS: true,
+                    scale: 2,
+                    logging: true,
+                    backgroundColor: null
+                });
+                
+                generatedCardImage = canvas.toDataURL('image/png');
+                console.log('Generated image:', generatedCardImage);
+                
+                // Temporary preview for debugging
+                const preview = document.createElement('img');
+                preview.src = generatedCardImage;
+                preview.style.position = 'fixed';
+                preview.style.top = '10px';
+                preview.style.right = '10px';
+                preview.style.zIndex = '9999';
+                document.body.appendChild(preview);
+                
+            } catch (error) {
+                console.error('html2canvas error:', error);
+                alert('فشل إنشاء الصورة: ' + error.message);
+            }
         }
+
+        /* ... (keep sendToDiscord() function unchanged) ... */
     </script>
 </body>
 </html>
